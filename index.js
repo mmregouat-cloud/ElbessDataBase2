@@ -48,11 +48,6 @@ mongoose.connect(Urldb)
 })
 .catch(err => console.log(err))
 
-
-
-
-const bcrypt = require('bcrypt');
-
 app.post("/SignIn", async (req, res) => {
     try {
         const store = await Store.findOne({ Address: req.body.Address });
