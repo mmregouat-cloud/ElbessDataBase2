@@ -6,6 +6,8 @@ const crypto = require('crypto')
 const multer = require('multer'); 
 const bcrypt = require('bcrypt')
 const fs = require('fs');
+const bcrypt = require('bcrypt');
+const Order = require('./model/Order_model.js')
 const Store  = require('./model/Store_model.js')
 const Product  = require('./model/Product_model.js')
 const { sendVerificationEmail } = require('./utils/sendEmail.js'); 
@@ -50,23 +52,39 @@ mongoose.connect(Urldb)
 
 
 
-app.post("/SignIn",(req,res)=>{
-    Store.findOne({
-        Address: req.body.Address,
-        Password: req.body.Password,
-}).then((result) => {
-        if (result) { 
-          res.json({
-                find: true,
-                result,
+const bcrypt = require('bcrypt');
+
+app.post("/SignIn", async (req, res) => {
+    try {
+        const store = await Store.findOne({ Address: req.body.Address });
+        if (!store) {
+            return res.json({
+                find: false,
+                message: "Address not found"
             });
-        } else{
-            res.json({
-              find: false,
-            })
+        } 
+        const isMatch = await bcrypt.compare(req.body.Password, store.Password);
+        if (!isMatch) {
+            return res.json({
+                find: false,
+                message: "Wrong password"
+            });
         }
-})
-})
+
+        res.json({
+            find: true,
+            result: store
+        });
+
+    } catch (error) {
+        console.error('Error signing in:', error);
+        res.status(500).json({
+            success: false,
+            message: "Error signing in",
+            error: error.message
+        });
+    }
+});
 
 app.post("/SignUp",upload.single('Logo'), async (req, res) => {
 
@@ -79,13 +97,13 @@ app.post("/SignUp",upload.single('Logo'), async (req, res) => {
                 message: "Store already exists",
             });
         } else{
-
+         const hashedPassword = await bcrypt.hash(req.body.Password, 10);
         const verificationToken = crypto.randomBytes(32).toString('hex');
         const logoPath = req.file ? req.file.path : "/uploads/DefaultLogo.png";
         
         const newStore= new Store({
       Address:req.body.Address,
-      Password:req.body.Password,
+      Password:hashedPassword,
       EmailVerificationToken: verificationToken,
       Name: req.body.Name,      
       Location: req.body.Location, 
@@ -238,6 +256,104 @@ app.post("/GetStoreProducts", async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Error fetching products",
+            error: error.message
+        });
+    }
+},
+ app.post("/AddOrder", async (req, res) => {
+  try {
+    const { store, type, products } = req.body
+ 
+    if (!products || products.length === 0) {
+      return res.status(400).json({ message: 'Order must have at least one product.' })
+    }
+
+     const totalPrice = products.reduce((sum, item) => {
+      return sum + item.price * item.quantity
+    }, 0)
+ 
+    const order = new Order({
+      store,
+      user: req.user._id,   
+      type: type || 'At Home',
+      products,
+      totalPrice,
+      status: 'prepared',
+    })
+ 
+    const saved = await order.save()
+ 
+    res.status(201).json({
+      message: 'Order created successfully.',
+      order: saved,
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+))
+
+app.post("/GetAllOrders", async (req, res) => {
+    try {
+        const orders = await Order.find({ store: req.body.StoreId});
+         
+
+        res.json({
+            success: true,
+            count: orders.length,
+            orders: orders
+        });
+
+    } catch (error) {
+        console.error('Error fetching orders:', error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching orders",
+            error: error.message
+        });
+    }
+});
+
+app.post("/UpdateOrderStatus", async (req, res) => {
+    try {
+        const order = await Order.findById(req.body.OrderId);
+
+        if (!order) {
+            return res.json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        const validStatuses = ['prepared', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+
+        if (!validStatuses.includes(req.body.status)) {
+            return res.json({
+                success: false,
+                message: "Invalid status, must be one of: " + validStatuses.join(', ')
+            });
+        }
+
+        order.status = req.body.status;
+
+        // if cancelled, save the reason
+        if (req.body.status === 'cancelled') {
+            order.cancelReason = req.body.cancelReason || '';
+        }
+
+        await order.save();
+
+        res.json({
+            success: true,
+            message: "Order status updated successfully",
+            order: order
+        });
+
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).json({
+            success: false,
+            message: "Error updating order status",
             error: error.message
         });
     }
