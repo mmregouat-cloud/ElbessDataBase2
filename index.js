@@ -157,7 +157,6 @@ app.post("/AddProduct", upload.single('Image'), (req, res) => {
     const newProduct = new Product({
         Name: req.body.Name,
         Price: req.body.Price,
-        Rating: req.body.Rating,
         SizeQuantities: sizeQuantities, 
         Store: req.body.Store,
         Category:req.body.Category,
