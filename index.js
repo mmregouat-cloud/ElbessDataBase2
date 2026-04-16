@@ -42,7 +42,7 @@ const Urldb =process.env.MONGODB_URI;
 mongoose.connect(Urldb)
 .then(result => {
     console.log('Connected to MongoDB');
-    app.listen(3000, () => {
+    app.listen(process.env.PORT, () => {
         console.log('Server is running on port 3000');
     });
 })
