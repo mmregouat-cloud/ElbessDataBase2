@@ -4,7 +4,6 @@ const mongoose = require('mongoose')
 const morgan = require('morgan')
 const crypto = require('crypto')
 const multer = require('multer'); 
-const bcrypt = require('bcrypt')
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const Order = require('./model/Order_model.js')
