@@ -43,7 +43,7 @@ mongoose.connect(Urldb)
 .then(result => {
     console.log('Connected to MongoDB');
     app.listen(process.env.PORT, () => {
-        console.log('Server is running on port 3000');
+        console.log('Server is running on port 5000');
     });
 })
 .catch(err => console.log(err))
